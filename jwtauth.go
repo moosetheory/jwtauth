@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 )
 
@@ -15,6 +16,7 @@ type JWTAuth struct {
 	alg             jwa.SignatureAlgorithm
 	signKey         interface{} // private-key
 	verifyKey       interface{} // public-key, only used by RSA and ECDSA algorithms
+	jwkKeySet       jwk.Set
 	verifier        jwt.ParseOption
 	validateOptions []jwt.ValidateOption
 }
@@ -33,15 +35,18 @@ var (
 	ErrAlgoInvalid  = errors.New("algorithm mismatch")
 )
 
-func New(alg string, signKey interface{}, verifyKey interface{}, validateOptions ...jwt.ValidateOption) *JWTAuth {
+func New(alg string, signKey interface{}, verifyKey interface{}, jwkSet jwk.Set, validateOptions ...jwt.ValidateOption) *JWTAuth {
 	ja := &JWTAuth{
 		alg:             jwa.SignatureAlgorithm(alg),
 		signKey:         signKey,
 		verifyKey:       verifyKey,
+		jwkKeySet:       jwkSet,
 		validateOptions: validateOptions,
 	}
 
-	if ja.verifyKey != nil {
+	if jwkSet != nil {
+		ja.verifier = jwt.WithKeySet(ja.jwkKeySet)
+	} else if ja.verifyKey != nil {
 		ja.verifier = jwt.WithKey(ja.alg, ja.verifyKey)
 	} else {
 		ja.verifier = jwt.WithKey(ja.alg, ja.signKey)
